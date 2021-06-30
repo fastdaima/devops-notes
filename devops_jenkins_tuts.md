@@ -461,3 +461,192 @@ def deployApp(){
 return this
 ```
 ______________________________________________________________________________
+### Jenkins Complete Pipeline
+
+>Example: Build Java App -> Build Image -> Push to private repo
+
+### Simple pipeline without groovy script
+
+### Jenkinsfile
+```
+pipeline {
+	agent any 
+	tools {
+		maven 'maven-3.8'
+	}
+	stages {
+		stage("build jar") {
+			steps {
+				script {
+					echo "building maven app!!!"
+					sh "mvn package"
+				}
+			}
+		}
+
+		stage("build image") {
+			steps {
+				script {
+					echo "building docker image!!!"
+					withCredentials([usernamePassword(credentialsId: '4ee958bd-1d7b-4e5b-abcc-4663312dacc6',passwordVariable:'PASS',usernameVariable:'USER')]) {
+						sh 'docker build -t happyfacep/my-repo:jma-2.0 .'
+						sh "echo $PASS | docker login -u $USER --password-stdin"
+						sh "docker push happyfacep/my-repo:jma-2.0"
+					}
+				}
+			}
+		}
+		
+		stage("deploy") {
+			steps {
+				script {
+					echo "deploying the app!!!"
+				}
+			}
+		}
+	}
+}
+```
+
+### Simple pipeline with groovy script 
+
+### Jenkinsfile
+```
+def gv
+
+pipeline {
+	agent any 
+	tools {
+		maven 'maven-3.8'
+	}
+	stages {
+		stage("init") {
+			steps {
+				script {
+					gv = load "script.groovy"
+				}
+			}
+		}
+		stage("build jar") {
+			steps {
+				script {
+					gv.buildJar()
+				}
+			}
+		}
+
+		stage("build image") {
+			steps {
+				script {
+					gv.buildDocker()
+				}
+			}
+		}
+		
+		stage("deploy") {
+			steps {
+				script {
+					gv.deployApp()
+				}
+			}
+		}
+	}
+}
+```
+
+### script.groovy
+```
+def buildJar() {
+   echo "building maven app!!!"
+   sh "mvn package"
+}
+
+def buildDocker() {
+    echo "building docker image!!!"
+    withCredentials([usernamePassword(credentialsId: '4ee958bd-1d7b-4e5b-abcc-4663312dacc6',passwordVariable:'PASS',usernameVariable:'USER')]) {
+        sh 'docker build -t happyfacep/my-repo:jma-2.0 .'
+        sh "echo $PASS | docker login -u $USER --password-stdin"
+        sh "docker push happyfacep/my-repo:jma-2.0"
+    }
+}
+
+def deployApp(){
+    echo "deploy app!!!"
+}
+
+return this
+```
+
+______________________________________________________________________________________
+### Multibranch pipeline
+
+> Multibranch Pipeline -> dynamically create pipelines for branches
+
+
+### Branch based logic for muli-branch in Jenkinsfile
+
+> Pipeline example to execute only on master branch in multi-branch pipeline
+
+```
+pipeline {
+	agent any 
+	stages {
+		stage('test') {
+			steps {
+				script {
+					echo "Testing !!!"
+					echo "Executing pipeline for branch $BRANCH_NAME"
+				}
+			}
+		}
+		stage('build') {
+			when {
+				expression {
+					BRANCH_NAME == 'master'
+				}
+			}
+			steps {
+				script {
+					echo "Building!!!"
+				}
+			}
+		}		
+		stage("deploy") {
+			steps {
+				script {
+					echo "Deploy!!!"
+				}
+			}
+		}
+	}
+}
+```
+______________________________________________________________________________________
+### Credentials in depth
+
+> Credentials Plugin to store and manage centrally.
+
+> System credentials available only on server
+
+> Global credentials available on both locally and server
+
+> can also be able to create credentials for seperate project / pipeline
+
+_______________________________________________________________
+### Jenkins shared library
+
+> example scenario: ten microservices concept
+
+### Shared Library
+* extension to the pipeline
+* has own repository
+* written in groovy
+* referenced shared logic in Jenkinsfile
+
+
+### Steps
+* repository
+* write groovy script
+* make shared library available globally
+* use this library in the Jenkinsfile to extend the pipeline
+
